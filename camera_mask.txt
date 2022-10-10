@@ -1,0 +1,84 @@
+import cv2
+import numpy as np # 行列計算ライブラリ、Numpyをインポート
+
+
+# カメラを取得
+cap0 = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cap1 = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+
+
+width = 10
+height = 10
+#カメラの幅を取得
+#カメラが開かなければ終了
+if cap0.isOpened(): 
+    # get vcap property 
+    width  = int(cap0.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap0.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap0.get(cv2.CAP_PROP_FPS)
+    if cap1.isOpened(): 
+        width  = int(cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap1.get(cv2.CAP_PROP_FPS)
+    else:
+        print("カメラが取得できない！")
+        import os
+        os.exit()
+else:
+    print("カメラが取得できない！")
+    import os
+    os.exit()
+
+# ここでは自分は映らない
+# 背景画像を取得
+ret, background0 = cap0.read()
+background_gray0 = cv2.cvtColor(background0, cv2.COLOR_BGR2GRAY) 
+ret, background1 = cap1.read()
+background_gray1 = cv2.cvtColor(background1, cv2.COLOR_BGR2GRAY)
+
+
+
+#カメラサイズの黒色画像を作成
+black = np.zeros((int(height), int(width), 3))
+black += [0,0,0][::-1]
+
+while(True):
+    #1フレーム取得
+    ret, img0 = cap0.read()
+    ret, img1 = cap1.read()
+
+    #グレースケール化して、背景画像との背景差分を求める
+    img_gray0 = cv2.cvtColor(img0, cv2.COLOR_BGR2GRAY)
+    img_gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    img_diff0 = cv2.absdiff(background_gray0, img_gray0)
+    img_diff1 = cv2.absdiff(background_gray1, img_gray1)
+
+    #二値化処理
+    ret3,img_th0 = cv2.threshold(img_diff0,23,255,cv2.THRESH_BINARY) 
+    ret3,img_th1 = cv2.threshold(img_diff1,23,255,cv2.THRESH_BINARY)
+
+    #黒色画像を使って背景を消す
+    img_black0 = np.copy(img0)
+    img_black1 = np.copy(img1)
+    img_black0[:] = np.where(img_th0[:height, :width, np.newaxis] == 0, black, img0)
+    img_black1[:] = np.where(img_th1[:height, :width, np.newaxis] == 0, black, img1)
+
+    #サイズをディスプレイに合わせる
+    result0 = cv2.resize(img_black0, (1920, 1080))
+    result1 = cv2.resize(img_black1, (1920, 1080))
+
+    #左右反転
+    result0 = cv2.flip(result0, 0)
+    result1 = cv2.flip(result1, 0)
+
+    #1フレーム出力
+    cv2.imshow('result0', result0)
+    cv2.imshow('result1', result1)
+
+    #Escキーが入力されたら終了
+    key = cv2.waitKey(1)
+    if key == 27: break
+
+cap0.release()
+cap1.release()
+cv2.destroyAllWindows()
